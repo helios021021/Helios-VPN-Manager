@@ -1,24 +1,3 @@
-:: --- HELIOS AUTO-UPDATER BASLANGICI ---
-set "CURRENT_VERSION=1.0"
-set "VERSION_URL=https://raw.githubusercontent.com/helios021021/Helios-VPN-Manager/main/version.txt"
-set "UPDATE_URL=https://raw.githubusercontent.com/helios021021/Helios-VPN-Manager/main/HeliosVPN.cmd"
-
-for /f "delims=" %%i in ('powershell -command "(Invoke-WebRequest -Uri '%VERSION_URL%' -UseBasicParsing).Content.Trim()" 2^>nul') do set "LATEST_VERSION=%%i"
-
-if "%LATEST_VERSION%"=="" goto :StartApp
-if "%CURRENT_VERSION%"=="%LATEST_VERSION%" goto :StartApp
-
-powershell -WindowStyle Hidden -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('Helios VPN Manager icin yeni bir surum (v%LATEST_VERSION%) bulundu. Guncelleme yapiliyor, lutfen bekleyin...', 'Helios Auto-Updater', 'OK', 'Information')"
-
-powershell -command "Invoke-WebRequest -Uri '%UPDATE_URL%' -OutFile '%temp%\HeliosUpdated.cmd'"
-if exist "%temp%\HeliosUpdated.cmd" (
-    move /y "%temp%\HeliosUpdated.cmd" "%~f0" >nul
-    start "" "%~f0"
-    exit /B
-)
-:StartApp
-:: --- HELIOS AUTO-UPDATER BITISI ---
-
 @echo off
 title FLY WITH Helios VPN
 net session >nul 2>&1
@@ -125,9 +104,15 @@ $btnStart.Add_Click({
 })
 
 $btnStop.Add_Click({
+    # 1. Tum Wireguard servislerini zorla durdur
     taskkill /F /IM wireguard.exe /T >$null 2>&1
+    
+    # 2. Servisi tamamen kaldir (Bilgisayar acildiginda VPN'in otomatik acilmasini onler)
+    $exePath = Join-Path $env:KLASOR "Engine\wireguard.exe"
+    Start-Process -FilePath $exePath -ArgumentList "/uninstalltunnelservice" -WindowStyle Hidden -Wait
+    
     ipconfig /flushdns >$null 2>&1
-    $lblStatus.Text = "Durum: Baglanti Kesildi."
+    $lblStatus.Text = "Durum: Baglanti Kesildi ve Servis Kaldirildi."
 })
 
 $btnExit.Add_Click({ $form.Close() })
