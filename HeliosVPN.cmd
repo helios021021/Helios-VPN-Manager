@@ -16,40 +16,34 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 # ==========================================================
-# --- OTOMATIK GUNCELLEME MOTORU (AUTO-UPDATER) ---
+# --- OTOMATIK GUNCELLEME MOTORU (TEST ICIN SURUM 1.1) ---
 # ==========================================================
-# 1. ADIM: Asagidaki rakam programin KENDI icindeki surumudur.
-$MevcutSurum = "1.2" 
-$VersionURL = "https://raw.githubusercontent.com/helios021021/Helios-VPN-Manager/main/version.txt"
-$ScriptURL = "https://raw.githubusercontent.com/helios021021/Helios-VPN-Manager/main/HeliosVPN.cmd"
+$MevcutSurum = "1.3" 
 
 try {
-    # GitHub'daki version.txt dosyasini oku
-    $GitHubSurum = (Invoke-RestMethod -Uri $VersionURL -UseBasicParsing).Trim()
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     
-    # Eger GitHub'daki surum, programin icindeki surumden buyukse guncellemeyi tetikle
+    # GitHub'dan veriyi al ve zorla METIN (String) formatina cevir.
+    $HamVeri = Invoke-RestMethod -Uri "https://raw.githubusercontent.com/helios021021/Helios-VPN-Manager/main/version.txt" -UseBasicParsing
+    $GitHubSurum = ([string]$HamVeri).Trim()
+    
     if ([version]$GitHubSurum -gt [version]$MevcutSurum) {
         $Cevap = [System.Windows.Forms.MessageBox]::Show("Helios VPN icin yeni bir guncelleme bulundu! (v$GitHubSurum)`n`nSorunlarin cozulmesi icin simdi otomatik olarak indirilip kurulsun mu?", "Yeni Guncelleme", [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Information)
         
         if ($Cevap -eq "Yes") {
-            # Yeni dosyayi gecici bir isimle indir
-            Invoke-WebRequest -Uri $ScriptURL -OutFile "$env:KLASOR\HeliosVPN_yeni.cmd" -UseBasicParsing
+            Invoke-WebRequest -Uri "https://raw.githubusercontent.com/helios021021/Helios-VPN-Manager/main/HeliosVPN.cmd" -OutFile "$env:KLASOR\HeliosVPN_yeni.cmd" -UseBasicParsing
             
-            # Programin acikken kendi kendini silemeyecegi icin, bu islemi yapacak bir taseron (bat) dosyasi olustur
             $UpdaterBat = "$env:KLASOR\guncelle.bat"
             $BatIcerik = "@echo off`ntimeout /t 2 /nobreak >nul`nmove /y `"$env:KLASOR\HeliosVPN_yeni.cmd`" `"$env:KLASOR\HeliosVPN.cmd`"`nstart `"`" `"$env:KLASOR\HeliosVPN.cmd`"`ndel `"%~f0`""
             Set-Content -Path $UpdaterBat -Value $BatIcerik
             
-            # Guncelleyiciyi calistir ve eski programi aninda kapat
             Start-Process -FilePath $UpdaterBat -WindowStyle Hidden
             exit
         }
     }
 } catch {
-    # Internet yoksa veya GitHub'a ulasilamiyorsa hata verme, programi normal sekilde ac
+    [System.Windows.Forms.MessageBox]::Show("Guncelleme kontrolu sirasinda HATA olustu:`n`n$($_.Exception.Message)`n`nLutfen internet baglantinizi kontrol edin.", "Guncelleme Hatasi", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
 }
-# ==========================================================
-# --- GUNCELLEME MOTORU BITISI ---
 # ==========================================================
 
 $form = New-Object System.Windows.Forms.Form
@@ -137,13 +131,10 @@ $btnStart.Add_Click({
 })
 
 $btnStop.Add_Click({
+    # BURASI BILEREK ESKI (HATALI) HALINDE BIRAKILDI (GUNCELLEME TESTI ICIN)
     taskkill /F /IM wireguard.exe /T >$null 2>&1
-    
-    $exePath = Join-Path $env:KLASOR "Engine\wireguard.exe"
-    Start-Process -FilePath $exePath -ArgumentList "/uninstalltunnelservice" -WindowStyle Hidden -Wait
-    
     ipconfig /flushdns >$null 2>&1
-    $lblStatus.Text = "Durum: Baglanti Kesildi ve Servis Kaldirildi."
+    $lblStatus.Text = "Durum: Baglanti Kesildi."
 })
 
 $btnExit.Add_Click({ $form.Close() })
